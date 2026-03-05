@@ -28,6 +28,8 @@ import {
 import { AnimatePresence, motion, useInView } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CLICursor } from "./components/CLICursor";
+import { ParticleAvatar } from "./components/ParticleAvatar";
 import { useActor } from "./hooks/useActor";
 
 // ─── Interactive Terminal ─────────────────────────────────────────────────────
@@ -335,6 +337,60 @@ function InteractiveTerminal() {
   );
 }
 
+// ─── HoverCommandPreview ──────────────────────────────────────────────────────
+
+function HoverCommandPreview({ lines }: { lines: string[] }) {
+  const [visibleLines, setVisibleLines] = useState<string[]>([]);
+  const [lineIdx, setLineIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setVisibleLines([]);
+    setLineIdx(0);
+    setCharIdx(0);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []); // intentional: reset only on mount
+
+  useEffect(() => {
+    if (lineIdx >= lines.length) return;
+    const target = lines[lineIdx];
+    if (charIdx < target.length) {
+      timeoutRef.current = setTimeout(() => {
+        setVisibleLines((prev) => {
+          const next = [...prev];
+          next[lineIdx] = target.slice(0, charIdx + 1);
+          return next;
+        });
+        setCharIdx((c) => c + 1);
+      }, 40);
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        setLineIdx((i) => i + 1);
+        setCharIdx(0);
+      }, 60);
+    }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [lineIdx, charIdx, lines]);
+
+  return (
+    <div
+      className="absolute bottom-full mb-2 left-0 z-30 bg-background/95 border border-terminal-green/40 rounded-sm px-3 py-2 w-48 font-mono text-xs text-terminal-green pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150"
+      style={{ transform: "translateY(0px)" }}
+    >
+      {visibleLines.map((line) => (
+        <div key={line} className="leading-relaxed whitespace-pre">
+          {line || <span className="opacity-0">.</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Particle Canvas ────────────────────────────────────────────────────────
 
 interface Particle {
@@ -597,6 +653,49 @@ function ContribGrid() {
   );
 }
 
+// ─── NavStatusPill ────────────────────────────────────────────────────────────
+
+function NavStatusPill() {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className="hidden md:flex relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Pill */}
+      <div
+        className="font-mono text-[10px] border border-terminal-green/30 rounded-full px-3 py-1 text-terminal-green bg-terminal-green/5 cursor-default select-none transition-all duration-150"
+        style={{ willChange: "box-shadow" }}
+      >
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-terminal-green mr-1.5 animate-pulse align-middle" />
+        SYSTEM: ONLINE
+      </div>
+
+      {/* Expanded dropdown */}
+      <div
+        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 pointer-events-none"
+        style={{
+          opacity: hovered ? 1 : 0,
+          transform: `translateX(-50%) translateY(${hovered ? "0px" : "-6px"})`,
+          transition: "opacity 150ms ease, transform 150ms ease",
+        }}
+      >
+        <div
+          className="bg-card border border-terminal-green/30 rounded-sm px-3 py-2 font-mono text-[10px] space-y-0.5 min-w-[160px] shadow-lg"
+          style={{ boxShadow: "0 4px 20px oklch(0.725 0.195 149.8 / 0.12)" }}
+        >
+          <div className="text-terminal-cyan mb-1">$ system_status</div>
+          <div className="text-terminal-green">CPU: Stable</div>
+          <div className="text-terminal-green">Latency: &lt;1ms</div>
+          <div className="text-terminal-green">Modules: Active</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 function Nav({ visitorCount }: { visitorCount: bigint | null }) {
@@ -645,6 +744,7 @@ function Nav({ visitorCount }: { visitorCount: bigint | null }) {
         </button>
 
         {/* Desktop nav */}
+        <NavStatusPill />
         <nav className="hidden md:flex items-center gap-8">
           {links.map((l) => (
             <button
@@ -744,96 +844,131 @@ function Hero() {
         }}
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-20">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {/* Prompt line */}
-          <p className="font-mono text-sm text-terminal-cyan mb-6 tracking-wide">
-            <span className="text-terminal-green">aayush@portfolio</span>
-            <span className="text-muted-foreground">:</span>
-            <span className="text-terminal-blue">~</span>
-            <span className="text-muted-foreground">$ </span>
-            <span className="text-foreground">./whoami</span>
-          </p>
-
-          {/* Name */}
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground mb-4 tracking-tight leading-none">
-            Aayush <span className="text-terminal-blue">Tikone</span>
-          </h1>
-
-          {/* Typing role */}
-          <div className="h-10 flex items-center mb-6">
-            <span className="font-mono text-lg md:text-xl text-muted-foreground mr-2">
-              &gt;{" "}
-            </span>
-            <TypingEffect />
-          </div>
-
-          {/* Tagline */}
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mb-10 leading-relaxed">
-            Building performance-critical systems where{" "}
-            <span className="text-terminal-cyan font-medium">latency</span>,{" "}
-            <span className="text-terminal-cyan font-medium">concurrency</span>,
-            and{" "}
-            <span className="text-terminal-cyan font-medium">
-              memory efficiency
-            </span>{" "}
-            matter.
-          </p>
-
-          {/* Metric badges */}
+      <div className="relative z-10 max-w-6xl mx-auto px-6 pt-20">
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
+          {/* Left column: existing content */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-wrap gap-2 mb-10"
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            {metrics.map((m) => (
-              <span key={m} className="metric-badge">
-                ▸ {m}
+            {/* Prompt line */}
+            <p className="font-mono text-sm text-terminal-cyan mb-6 tracking-wide">
+              <span className="text-terminal-green">aayush@portfolio</span>
+              <span className="text-muted-foreground">:</span>
+              <span className="text-terminal-blue">~</span>
+              <span className="text-muted-foreground">$ </span>
+              <span className="text-foreground">./whoami</span>
+            </p>
+
+            {/* Name */}
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-foreground mb-4 tracking-tight leading-none">
+              Aayush <span className="text-terminal-blue">Tikone</span>
+            </h1>
+
+            {/* Typing role */}
+            <div className="h-10 flex items-center mb-6">
+              <span className="font-mono text-lg md:text-xl text-muted-foreground mr-2">
+                &gt;{" "}
               </span>
-            ))}
+              <TypingEffect />
+            </div>
+
+            {/* Tagline */}
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl mb-10 leading-relaxed">
+              Building performance-critical systems where{" "}
+              <span className="text-terminal-cyan font-medium">latency</span>,{" "}
+              <span className="text-terminal-cyan font-medium">
+                concurrency
+              </span>
+              , and{" "}
+              <span className="text-terminal-cyan font-medium">
+                memory efficiency
+              </span>{" "}
+              matter.
+            </p>
+
+            {/* Metric badges */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-wrap gap-2 mb-10"
+            >
+              {metrics.map((m) => (
+                <span key={m} className="metric-badge">
+                  ▸ {m}
+                </span>
+              ))}
+            </motion.div>
+
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="flex flex-wrap gap-4"
+            >
+              <div className="relative group">
+                <HoverCommandPreview
+                  lines={[
+                    "$ run projects",
+                    "loading modules...",
+                    "system ready ✓",
+                  ]}
+                />
+                <Button
+                  data-ocid="hero.cta.primary_button"
+                  onClick={() => scroll("projects")}
+                  className="font-mono text-sm bg-terminal-blue/20 border border-terminal-blue/60 text-terminal-blue hover:bg-terminal-blue/30 hover:border-terminal-blue glow-blue px-6 py-2.5"
+                  variant="outline"
+                >
+                  View Projects
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </div>
+              <div className="relative group">
+                <HoverCommandPreview
+                  lines={["$ open contact", "loading form...", "ready ✓"]}
+                />
+                <Button
+                  data-ocid="hero.cta.secondary_button"
+                  onClick={() => scroll("contact")}
+                  variant="ghost"
+                  className="font-mono text-sm text-muted-foreground hover:text-terminal-green border border-border hover:border-terminal-green/50"
+                >
+                  <Terminal className="mr-2 w-4 h-4" />
+                  Get in Touch
+                </Button>
+              </div>
+            </motion.div>
+
+            {/* Interactive terminal */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.8 }}
+              className="mt-12"
+            >
+              <InteractiveTerminal />
+            </motion.div>
           </motion.div>
 
-          {/* CTAs */}
+          {/* Right column: particle avatar */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="flex flex-wrap gap-4"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="hidden md:flex items-center justify-center"
           >
-            <Button
-              data-ocid="hero.cta.primary_button"
-              onClick={() => scroll("projects")}
-              className="font-mono text-sm bg-terminal-blue/20 border border-terminal-blue/60 text-terminal-blue hover:bg-terminal-blue/30 hover:border-terminal-blue glow-blue px-6 py-2.5"
-              variant="outline"
+            <div
+              data-scan="avatar"
+              className="relative w-80 h-96 lg:w-96 lg:h-[480px]"
             >
-              View Projects
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-            <Button
-              onClick={() => scroll("contact")}
-              variant="ghost"
-              className="font-mono text-sm text-muted-foreground hover:text-terminal-green border border-border hover:border-terminal-green/50"
-            >
-              <Terminal className="mr-2 w-4 h-4" />
-              Get in Touch
-            </Button>
+              <ParticleAvatar />
+            </div>
           </motion.div>
-
-          {/* Interactive terminal */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.8 }}
-            className="mt-12"
-          >
-            <InteractiveTerminal />
-          </motion.div>
-        </motion.div>
+        </div>
 
         {/* Scroll indicator */}
         <motion.div
@@ -987,6 +1122,30 @@ function About() {
   );
 }
 
+// ─── Skill Code Snippets ──────────────────────────────────────────────────────
+
+const SKILL_SNIPPETS: Record<string, string> = {
+  "C++17/20": "std::thread worker(process_orders);",
+  Multithreading: "std::mutex order_mutex;",
+  "Memory Management": "std::unique_ptr<Order> order;",
+  "Linux Internals": "ps aux | grep engine",
+  "Lock-free DS": "std::atomic<int> counter{0};",
+  POSIX: "#include <pthread.h>",
+  IPC: "pipe(fd); fork();",
+  GDB: "break main; run",
+  Valgrind: "--leak-check=full",
+  perf: "perf stat ./engine",
+  MySQL: "SELECT * FROM orders;",
+  JDBC: "conn.prepareStatement(sql);",
+  "Order Matching": "match(buy, sell);",
+  RAII: "std::lock_guard<std::mutex> lg(m);",
+  "Cache Locality": "alignas(64) Order book[];",
+};
+
+function getSkillSnippet(item: string): string {
+  return SKILL_SNIPPETS[item] ?? `// ${item}`;
+}
+
 // ─── Technical Architecture ───────────────────────────────────────────────────
 
 const TECH_CATEGORIES = [
@@ -1046,7 +1205,10 @@ function TechArchitecture() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {TECH_CATEGORIES.map((cat, idx) => (
             <RevealSection key={cat.label} delay={idx * 0.1}>
-              <div className="terminal-card rounded-lg p-5 h-full">
+              <div
+                data-scan="skills"
+                className="terminal-card rounded-lg p-5 h-full"
+              >
                 <div
                   className={`flex items-center gap-2 mb-4 text-terminal-${cat.color}`}
                 >
@@ -1057,9 +1219,12 @@ function TechArchitecture() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {cat.items.map((item) => (
-                    <span key={item} className="tech-tag cursor-default">
-                      {item}
-                    </span>
+                    <div key={item} className="relative group">
+                      <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 z-20 bg-card border border-terminal-green/30 rounded-sm px-2 py-1.5 font-mono text-[10px] text-terminal-green whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150">
+                        {getSkillSnippet(item)}
+                      </div>
+                      <span className="tech-tag cursor-default">{item}</span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1089,6 +1254,12 @@ const PROJECTS = [
     tagColor: "terminal-green",
     icon: <Zap className="w-5 h-5" />,
     highlight: "green",
+    logs: [
+      "[INFO] Initializing order book",
+      "[INFO] Processing buy/sell orders",
+      "[INFO] Latency optimization enabled",
+      "[SUCCESS] Engine ready",
+    ],
   },
   {
     name: "CollegeBook Student Management System",
@@ -1105,8 +1276,152 @@ const PROJECTS = [
     tagColor: "terminal-cyan",
     icon: <Layers className="w-5 h-5" />,
     highlight: "cyan",
+    logs: [
+      "[INFO] Connecting to database",
+      "[INFO] Loading student records",
+      "[INFO] Auth module initialized",
+      "[SUCCESS] System ready",
+    ],
   },
 ];
+
+function ProjectCard({
+  p,
+  idx,
+}: {
+  p: (typeof PROJECTS)[number];
+  idx: number;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [visibleLogCount, setVisibleLogCount] = useState(0);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimeouts = () => {
+    for (const t of timeoutsRef.current) clearTimeout(t);
+    timeoutsRef.current = [];
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    setIsScanning(true);
+    setVisibleLogCount(0);
+
+    // Stream logs in staggered
+    p.logs.forEach((_, i) => {
+      const t = setTimeout(() => {
+        setVisibleLogCount((c) => c + 1);
+      }, i * 120);
+      timeoutsRef.current.push(t);
+    });
+
+    // Reset scan class after animation completes
+    const scanT = setTimeout(() => setIsScanning(false), 650);
+    timeoutsRef.current.push(scanT);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setIsScanning(false);
+    setVisibleLogCount(0);
+    clearTimeouts();
+  };
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clearTimeouts is stable ref-based
+  useEffect(() => () => clearTimeouts(), []);
+
+  return (
+    <RevealSection delay={idx * 0.15}>
+      <div
+        data-ocid={`projects.item.${idx + 1}`}
+        className="project-card rounded-lg p-6 flex flex-col h-full relative overflow-hidden"
+        style={{
+          borderColor: isHovered ? "oklch(0.598 0.183 255.6 / 0.7)" : undefined,
+          boxShadow: isHovered
+            ? "0 0 25px oklch(0.598 0.183 255.6 / 0.25), 0 8px 32px oklch(0 0 0 / 0.5)"
+            : undefined,
+          transform: isHovered ? "translateY(-4px)" : undefined,
+          transition:
+            "border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease",
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Scan-line sweep */}
+        {isScanning && (
+          <div
+            className="card-scan-sweep absolute left-0 right-0 h-px bg-terminal-cyan/60 pointer-events-none z-10"
+            style={{ top: 0 }}
+          />
+        )}
+
+        <div className="flex items-start justify-between mb-4">
+          <div className={`text-terminal-${p.highlight}`}>{p.icon}</div>
+          <Badge
+            className={`font-mono text-xs bg-terminal-${p.highlight}/10 border-terminal-${p.highlight}/40 text-terminal-${p.highlight}`}
+            variant="outline"
+          >
+            {p.tag}
+          </Badge>
+        </div>
+
+        <h3 className="font-display font-bold text-lg text-foreground mb-3 leading-tight">
+          {p.name}
+        </h3>
+
+        <p className="text-sm text-muted-foreground mb-5 leading-relaxed flex-1">
+          {p.description}
+        </p>
+
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {p.tech.map((t) => (
+            <span key={t} className="tech-tag">
+              {t}
+            </span>
+          ))}
+        </div>
+
+        <div className="space-y-1.5 border-t border-border pt-4">
+          {p.features.map((f) => (
+            <div
+              key={f}
+              className="flex items-start gap-2 text-xs text-muted-foreground"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-terminal-green shrink-0 mt-0.5" />
+              <span>{f}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="mt-4 flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-terminal-cyan transition-colors"
+        >
+          <ExternalLink className="w-3 h-3" />
+          View on GitHub
+        </button>
+
+        {/* Log stream overlay */}
+        {isHovered && visibleLogCount > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 bg-background/85 backdrop-blur-sm border-t border-terminal-blue/30 px-3 py-2 font-mono text-[10px] space-y-0.5 max-h-[80px] overflow-hidden z-20">
+            {p.logs.slice(0, visibleLogCount).map((log) => (
+              <div
+                key={log}
+                className={
+                  log.startsWith("[SUCCESS]")
+                    ? "text-terminal-green"
+                    : "text-muted-foreground"
+                }
+              >
+                {log}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </RevealSection>
+  );
+}
 
 function Projects() {
   return (
@@ -1123,58 +1438,7 @@ function Projects() {
 
         <div className="grid md:grid-cols-2 gap-6">
           {PROJECTS.map((p, idx) => (
-            <RevealSection key={p.name} delay={idx * 0.15}>
-              <div
-                data-ocid={`projects.item.${idx + 1}`}
-                className="project-card rounded-lg p-6 flex flex-col h-full group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`text-terminal-${p.highlight}`}>{p.icon}</div>
-                  <Badge
-                    className={`font-mono text-xs bg-terminal-${p.highlight}/10 border-terminal-${p.highlight}/40 text-terminal-${p.highlight}`}
-                    variant="outline"
-                  >
-                    {p.tag}
-                  </Badge>
-                </div>
-
-                <h3 className="font-display font-bold text-lg text-foreground mb-3 leading-tight">
-                  {p.name}
-                </h3>
-
-                <p className="text-sm text-muted-foreground mb-5 leading-relaxed flex-1">
-                  {p.description}
-                </p>
-
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {p.tech.map((t) => (
-                    <span key={t} className="tech-tag">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="space-y-1.5 border-t border-border pt-4">
-                  {p.features.map((f) => (
-                    <div
-                      key={f}
-                      className="flex items-start gap-2 text-xs text-muted-foreground"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-terminal-green shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  className="mt-4 flex items-center gap-1 text-xs font-mono text-muted-foreground group-hover:text-terminal-cyan transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  View on GitHub
-                </button>
-              </div>
-            </RevealSection>
+            <ProjectCard key={p.name} p={p} idx={idx} />
           ))}
         </div>
       </div>
@@ -1589,6 +1853,16 @@ function GitHubActivity() {
   );
 }
 
+// ─── ContactHint ──────────────────────────────────────────────────────────────
+
+function ContactHint({ hint }: { hint: string }) {
+  return (
+    <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 font-mono text-[10px] text-terminal-green mt-0.5 text-center">
+      {hint}
+    </span>
+  );
+}
+
 // ─── Contact ──────────────────────────────────────────────────────────────────
 
 const CONTACT_EMAIL = "aayushtikone7@gmail.com";
@@ -1676,43 +1950,55 @@ function Contact({ actor }: { actor: ReturnType<typeof useActor>["actor"] }) {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <a
-                  href="https://github.com/tikoneaayush"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-ocid="contact.github.link"
-                  className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-green border border-border hover:border-terminal-green/50 px-3 py-2 rounded-sm transition-all"
-                >
-                  <Github className="w-4 h-4" />
-                  GitHub
-                </a>
-                <a
-                  href="https://www.linkedin.com/in/aayushtikone"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-ocid="contact.linkedin.link"
-                  className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-blue border border-border hover:border-terminal-blue/50 px-3 py-2 rounded-sm transition-all"
-                >
-                  <Linkedin className="w-4 h-4" />
-                  LinkedIn
-                </a>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  data-ocid="contact.email.link"
-                  className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-cyan border border-border hover:border-terminal-cyan/50 px-3 py-2 rounded-sm transition-all"
-                >
-                  <Mail className="w-4 h-4" />
-                  Email
-                </a>
-                <button
-                  type="button"
-                  onClick={copyEmail}
-                  data-ocid="contact.copy_email.button"
-                  className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-amber border border-border hover:border-terminal-amber/50 px-3 py-2 rounded-sm transition-all"
-                >
-                  <Copy className="w-4 h-4" />
-                  {copied ? "Copied!" : "Copy Email"}
-                </button>
+                <div className="relative group flex flex-col items-center">
+                  <a
+                    href="https://github.com/tikoneaayush"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-ocid="contact.github.link"
+                    className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-green border border-border hover:border-terminal-green/50 px-3 py-2 rounded-sm transition-all"
+                  >
+                    <Github className="w-4 h-4" />
+                    GitHub
+                  </a>
+                  <ContactHint hint="> open_repository()" />
+                </div>
+                <div className="relative group flex flex-col items-center">
+                  <a
+                    href="https://www.linkedin.com/in/aayushtikone"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-ocid="contact.linkedin.link"
+                    className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-blue border border-border hover:border-terminal-blue/50 px-3 py-2 rounded-sm transition-all"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                    LinkedIn
+                  </a>
+                  <ContactHint hint="> open_profile()" />
+                </div>
+                <div className="relative group flex flex-col items-center">
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    data-ocid="contact.email.link"
+                    className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-cyan border border-border hover:border-terminal-cyan/50 px-3 py-2 rounded-sm transition-all"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </a>
+                  <ContactHint hint="> compose_message()" />
+                </div>
+                <div className="relative group flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={copyEmail}
+                    data-ocid="contact.copy_email.button"
+                    className="flex items-center gap-2 font-mono text-sm text-muted-foreground hover:text-terminal-amber border border-border hover:border-terminal-amber/50 px-3 py-2 rounded-sm transition-all"
+                  >
+                    <Copy className="w-4 h-4" />
+                    {copied ? "Copied!" : "Copy Email"}
+                  </button>
+                  <ContactHint hint="> copy(email)" />
+                </div>
               </div>
             </div>
           </RevealSection>
@@ -1870,6 +2156,249 @@ function Footer() {
   );
 }
 
+// ─── CLI Easter Egg ───────────────────────────────────────────────────────────
+
+type EggLine = { text: string; color?: "green" | "cyan" | "error" | "muted" };
+
+function CliEasterEgg() {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [lines, setLines] = useState<EggLine[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimeouts = () => {
+    for (const t of timeoutsRef.current) clearTimeout(t);
+    timeoutsRef.current = [];
+  };
+
+  // Global keydown listener to open overlay
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tag = target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target.isContentEditable)
+        return;
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setOpen(true);
+        setInput(e.key);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Escape closes the overlay
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  // Auto-focus input when opened
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [open]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when lines change
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lines]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clearTimeouts is stable ref-based
+  useEffect(() => () => clearTimeouts(), []);
+
+  const addLine = (line: EggLine) => {
+    setLines((prev) => [...prev.slice(-20), line]);
+  };
+
+  const runCommand = (raw: string) => {
+    const cmd = raw.trim().toLowerCase();
+    addLine({ text: `$ ${raw}`, color: "green" });
+
+    switch (cmd) {
+      case "help":
+        addLine({
+          text: "Available commands: projects | resume | github | contact | clear",
+          color: "cyan",
+        });
+        break;
+      case "projects":
+        addLine({ text: "→ Navigating to projects...", color: "muted" });
+        {
+          const t = setTimeout(() => {
+            document
+              .getElementById("projects")
+              ?.scrollIntoView({ behavior: "smooth" });
+            setOpen(false);
+          }, 600);
+          timeoutsRef.current.push(t);
+        }
+        break;
+      case "resume":
+        addLine({ text: "→ Opening GitHub profile...", color: "muted" });
+        window.open("https://github.com/tikoneaayush", "_blank");
+        {
+          const t = setTimeout(() => setOpen(false), 600);
+          timeoutsRef.current.push(t);
+        }
+        break;
+      case "github":
+        addLine({
+          text: "→ Opening github.com/tikoneaayush...",
+          color: "muted",
+        });
+        window.open("https://github.com/tikoneaayush", "_blank");
+        {
+          const t = setTimeout(() => setOpen(false), 600);
+          timeoutsRef.current.push(t);
+        }
+        break;
+      case "contact":
+        addLine({ text: "→ Navigating to contact...", color: "muted" });
+        {
+          const t = setTimeout(() => {
+            document
+              .getElementById("contact")
+              ?.scrollIntoView({ behavior: "smooth" });
+            setOpen(false);
+          }, 600);
+          timeoutsRef.current.push(t);
+        }
+        break;
+      case "clear":
+        setLines([]);
+        break;
+      default:
+        if (cmd !== "") {
+          addLine({ text: `command not found: ${cmd}`, color: "error" });
+        }
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      runCommand(input);
+      setInput("");
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-40 bg-background/40 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* Terminal overlay */}
+          <motion.div
+            data-ocid="cli.dialog"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-8 left-1/2 z-50 w-full max-w-md -translate-x-1/2 terminal-card rounded-lg overflow-hidden"
+            style={{
+              boxShadow:
+                "0 0 40px oklch(0.725 0.195 149.8 / 0.2), 0 20px 60px oklch(0 0 0 / 0.6)",
+            }}
+          >
+            {/* Title bar */}
+            <div className="flex items-center justify-between px-4 py-2 bg-card border-b border-border">
+              <div className="flex gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-red-500/70" />
+                <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
+                <span className="w-3 h-3 rounded-full bg-green-500/70" />
+              </div>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                CLIfolio — press ESC to close
+              </span>
+              <button
+                type="button"
+                data-ocid="cli.close_button"
+                onClick={() => setOpen(false)}
+                className="font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Output */}
+            <div className="px-4 py-3 min-h-[80px] max-h-[160px] overflow-y-auto font-mono text-xs space-y-0.5 bg-background/60">
+              {lines.slice(-6).map((line) => (
+                <div
+                  key={`${line.color}-${line.text}`}
+                  className={
+                    line.color === "green"
+                      ? "text-terminal-green"
+                      : line.color === "cyan"
+                        ? "text-terminal-cyan"
+                        : line.color === "error"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                  }
+                >
+                  {line.text}
+                </div>
+              ))}
+              {lines.length === 0 && (
+                <div className="text-muted-foreground/50">
+                  Type a command. Try{" "}
+                  <span className="text-terminal-cyan">help</span>
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+
+            {/* Input row */}
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-card/60">
+              <span className="font-mono text-xs text-terminal-green shrink-0">
+                $
+              </span>
+              <input
+                ref={inputRef}
+                data-ocid="cli.input"
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                className="flex-1 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/40 caret-terminal-green"
+                placeholder="type a command..."
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+              <span className="cursor-blink text-terminal-green text-xs font-mono">
+                ▋
+              </span>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1893,6 +2422,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <CLICursor />
       <Toaster
         theme="dark"
         toastOptions={{
@@ -1903,6 +2433,7 @@ export default function App() {
           },
         }}
       />
+      <CliEasterEgg />
       <Nav visitorCount={visitorCount} />
       <main>
         <Hero />
