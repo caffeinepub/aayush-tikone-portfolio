@@ -400,7 +400,7 @@ export function ParticleAvatar() {
 
       {/* Actual photo — fills the container absolutely */}
       <img
-        src="/assets/uploads/image-1-1.png"
+        src="/assets/uploads/MyImageFinal-1.png"
         alt="Aayush Tikone"
         style={{
           position: "absolute",
@@ -485,12 +485,12 @@ export function ParticleAvatar() {
         </span>
       </div>
 
-      {/* ── Three.js particle overlay (decorative, semi-transparent) ──────── */}
+      {/* ── Three.js particle overlay (decorative, behind photo) ──────── */}
       <canvas
         ref={canvasRef}
         data-ocid="hero.avatar.canvas_target"
         className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ zIndex: 5, display: "block" }}
+        style={{ zIndex: 1, display: "block", opacity: 0.35 }}
       />
 
       {/* Ambient outer glow */}
@@ -498,10 +498,10 @@ export function ParticleAvatar() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: isHovered
-            ? "radial-gradient(ellipse 60% 70% at 50% 50%, rgba(34,197,94,0.10) 0%, transparent 70%)"
-            : "radial-gradient(ellipse 55% 65% at 50% 50%, rgba(34,197,94,0.05) 0%, transparent 70%)",
+            ? "radial-gradient(ellipse 60% 70% at 50% 50%, rgba(34,197,94,0.08) 0%, transparent 70%)"
+            : "radial-gradient(ellipse 55% 65% at 50% 50%, rgba(34,197,94,0.03) 0%, transparent 70%)",
           transition: "all 0.5s ease",
-          zIndex: 6,
+          zIndex: 8,
         }}
       />
 
@@ -511,7 +511,7 @@ export function ParticleAvatar() {
           <motion.div
             key="scanline"
             className="absolute left-0 right-0 pointer-events-none"
-            style={{ height: "2px", zIndex: 7 }}
+            style={{ height: "2px", zIndex: 9 }}
             initial={{ top: "0%", opacity: 0 }}
             animate={{ top: "100%", opacity: [0, 0.7, 0.7, 0] }}
             exit={{ opacity: 0 }}
@@ -543,7 +543,7 @@ export function ParticleAvatar() {
           style={{
             width: "20px",
             height: "20px",
-            zIndex: 8,
+            zIndex: 10,
             top: corner.startsWith("t") ? "8px" : undefined,
             bottom: corner.startsWith("b") ? "8px" : undefined,
             left: corner.endsWith("l") ? "8px" : undefined,
@@ -577,7 +577,7 @@ export function ParticleAvatar() {
             transition={{ duration: 0.25 }}
             className="absolute bottom-4 left-4 right-4 pointer-events-none"
             style={{
-              zIndex: 9,
+              zIndex: 11,
               background: "rgba(11,15,20,0.93)",
               border: "1px solid rgba(34,197,94,0.35)",
               borderRadius: "8px",
