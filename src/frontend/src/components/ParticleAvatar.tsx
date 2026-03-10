@@ -400,7 +400,7 @@ export function ParticleAvatar() {
 
       {/* Actual photo — fills the container absolutely */}
       <img
-        src="/assets/uploads/MyImageFinal-1.png"
+        src="/assets/uploads/image-7-1.png"
         alt="Aayush Tikone"
         style={{
           position: "absolute",
